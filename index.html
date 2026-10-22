@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#101923" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://127.0.0.1:5173 https://api.open-meteo.com https://geocoding-api.open-meteo.com https://air-quality-api.open-meteo.com https://api.rainviewer.com https://nominatim.openstreetmap.org https://api.weather.gov https://cap-sources.s3.amazonaws.com; img-src 'self' data: https://tilecache.rainviewer.com https://*.tile.openstreetmap.org; font-src 'self' data:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'" />
+    <title>Atmosphere Weather</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

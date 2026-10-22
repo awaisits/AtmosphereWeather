@@ -1,0 +1,11 @@
+node_modules/
+dist/
+release/
+shots/
+.harness-userdata/
+*.log
+.DS_Store
+.env*
+!.env.example
+*.pfx
+*.p12

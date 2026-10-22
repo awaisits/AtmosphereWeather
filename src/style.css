@@ -1,0 +1,1281 @@
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', sans-serif;
+  --font-mono: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+  --shadow-1: 0 1px 2px rgba(0,0,0,.08), 0 1px 1px rgba(0,0,0,.06);
+  --shadow-2: 0 4px 8px rgba(0,0,0,.1), 0 2px 4px rgba(0,0,0,.06);
+  --shadow-3: 0 12px 24px rgba(0,0,0,.12), 0 4px 8px rgba(0,0,0,.08);
+  --shadow-4: 0 20px 40px rgba(0,0,0,.15), 0 8px 16px rgba(0,0,0,.1);
+  --blur-sm: blur(8px);
+  --blur-md: blur(20px);
+  --blur-lg: blur(40px);
+  --transition-fast: 120ms cubic-bezier(.4,0,.2,1);
+  --transition-normal: 200ms cubic-bezier(.4,0,.2,1);
+  --transition-slow: 300ms cubic-bezier(.4,0,.2,1);
+
+  --accent: #007aff;
+  --accent-hover: #005ecb;
+  --accent-pressed: #004a9e;
+  --accent-light: rgba(0,122,255,.12);
+  --accent-muted: rgba(0,122,255,.08);
+  --success: #30d158;
+  --warning: #ff9f0a;
+  --error: #ff453a;
+  --destructive: #ff3b30;
+
+  --bg-primary: #1d1d1f;
+  --bg-secondary: #1a1a1c;
+  --bg-tertiary: #2c2c2e;
+  --bg-quaternary: #3a3a3c;
+  --bg-card: rgba(28,28,30,.72);
+  --bg-card-hover: rgba(38,38,40,.8);
+  --bg-glass: rgba(28,28,30,.56);
+  --bg-glass-strong: rgba(28,28,30,.72);
+
+  --fg-primary: #f5f5f7;
+  --fg-secondary: #a1a1a6;
+  --fg-tertiary: #6e6e73;
+  --fg-inverse: #1d1d1f;
+  --fg-on-accent: #ffffff;
+
+  --border-subtle: rgba(255,255,255,.08);
+  --border-default: rgba(255,255,255,.12);
+  --border-strong: rgba(255,255,255,.18);
+  --border-focus: rgba(0,122,255,.5);
+
+  --sidebar-width: 240px;
+  --toolbar-height: 44px;
+  --compact-toolbar: 36px;
+
+  --sidebar-bg: rgba(22,22,24,.88);
+  --sidebar-border: rgba(255,255,255,.06);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg-primary: #f5f5f7;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #f2f2f5;
+    --bg-quaternary: #e5e5e7;
+    --bg-card: rgba(255,255,255,.8);
+    --bg-card-hover: rgba(255,255,255,.9);
+    --bg-glass: rgba(255,255,255,.6);
+    --bg-glass-strong: rgba(255,255,255,.8);
+
+    --fg-primary: #1d1d1f;
+    --fg-secondary: #6e6e73;
+    --fg-tertiary: #a1a1a6;
+    --fg-inverse: #f5f5f7;
+    --fg-on-accent: #ffffff;
+
+    --border-subtle: rgba(0,0,0,.06);
+    --border-default: rgba(0,0,0,.08);
+    --border-strong: rgba(0,0,0,.12);
+    --border-focus: rgba(0,122,255,.5);
+
+    --sidebar-bg: rgba(255,255,255,.88);
+    --sidebar-border: rgba(0,0,0,.05);
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  background: var(--bg-primary);
+  color: var(--fg-primary);
+  overflow: hidden;
+}
+button, input, select, textarea { font: inherit; }
+button { color: inherit; background: none; border: none; cursor: pointer; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  position: relative;
+}
+
+/* Scene colour sits on a layer beneath the animated canvas. The canvas is a
+   child of `.app`, so it needs a positioned ancestor with a lower stacking
+   order to sit between this backdrop and the app content.
+
+   `.app` is `position: relative` with no `z-index`, so it does not create a
+   stacking context. These three layers therefore share the root stacking
+   context, and their negative z-index values order them:
+
+     -3  ::before   flat scene colour (the fallback behind the canvas)
+     -2  canvas     the animated sky
+     -1  ::after    readability scrim, between the sky and the content
+
+   The scrim has to sit at -1 rather than 0: a positioned element with
+   z-index 0 paints *after* the in-flow content and would cover the text. */
+.app.has-weather-scene { background: transparent; }
+.app.has-weather-scene::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -3;
+  background: var(--scene-bg, var(--bg-primary));
+}
+
+.app:has(.sidebar) { overflow: hidden; }
+
+/* Urdu uses native RTL flow and a font stack that includes common Windows
+   Arabic-script fonts. Keep chart geometry and numeric readings LTR. */
+.app[dir="rtl"], .weather-widget[dir="rtl"] {
+  --font-sans: "Noto Nastaliq Urdu", "Noto Naskh Arabic", "Segoe UI", sans-serif;
+  line-height: 1.65;
+}
+.app[dir="rtl"] .sidebar { border-right: 0; border-left: 1px solid var(--sidebar-border); }
+.app[dir="rtl"] .nav-item { text-align: right; }
+.app[dir="rtl"] .search-wrap > svg { left: auto; right: 10px; }
+.app[dir="rtl"] .settings-sheet { border-radius: 0 var(--radius-xl) var(--radius-xl) 0; border-right: 1px solid var(--border-default); border-left: 0; transform: translateX(-40px); }
+.app[dir="rtl"] .modal-overlay.open .settings-sheet { transform: translateX(0); }
+.app[dir="rtl"] .setting-row, .app[dir="rtl"] .settings-heading, .app[dir="rtl"] .saved-heading { direction: rtl; }
+.app[dir="rtl"] .chart-wrap, .app[dir="rtl"] .hourly-scroll, .app[dir="rtl"] .daily-list,
+.app[dir="rtl"] .temperature, .app[dir="rtl"] .metric-value, .app[dir="rtl"] .air-grid b,
+.weather-widget[dir="rtl"] .widget-reading { direction: ltr; }
+.app[dir="rtl"] .search-wrap { direction: rtl; }
+.weather-widget[dir="rtl"] .widget-content { text-align: right; align-items: flex-start; }
+.weather-widget[dir="rtl"] .widget-header { direction: rtl; }
+
+.titlebar {
+  height: var(--toolbar-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px 0 8px;
+  background: var(--bg-glass);
+  backdrop-filter: var(--blur-md);
+  -webkit-backdrop-filter: var(--blur-md);
+  border-bottom: 1px solid var(--border-subtle);
+  position: relative;
+  z-index: 10;
+  -webkit-app-region: drag;
+}
+
+.titlebar-center {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.titlebar-title {
+  font: 500 12px var(--font-sans);
+  color: var(--fg-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.titlebar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  -webkit-app-region: no-drag;
+}
+
+.sidebar {
+  width: var(--sidebar-width);
+  flex-shrink: 0;
+  background: var(--sidebar-bg);
+  backdrop-filter: var(--blur-lg);
+  -webkit-backdrop-filter: var(--blur-lg);
+  border-right: 1px solid var(--sidebar-border);
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--toolbar-height));
+  overflow: hidden;
+  z-index: 5;
+}
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.sidebar-title {
+  font: 600 11px var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--fg-tertiary);
+}
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  color: var(--fg-secondary);
+  font: 500 13px var(--font-sans);
+  transition: background var(--transition-fast), color var(--transition-fast);
+  margin-bottom: 2px;
+  width: 100%;
+  text-align: left;
+}
+.nav-item:hover { background: var(--bg-tertiary); color: var(--fg-primary); }
+.nav-item.active {
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 600;
+}
+.nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+.nav-divider { height: 1px; background: var(--border-subtle); margin: 8px 4px; }
+
+.main-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.toolbar {
+  height: var(--toolbar-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: var(--bg-glass);
+  backdrop-filter: var(--blur-md);
+  -webkit-backdrop-filter: var(--blur-md);
+  border-bottom: 1px solid var(--border-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.toolbar-left, .toolbar-right { display: flex; align-items: center; gap: 8px; }
+.toolbar-right { gap: 4px; }
+
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px; height: 32px;
+  border-radius: var(--radius-full);
+  color: var(--fg-secondary);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.toolbar-btn:hover { background: var(--bg-tertiary); color: var(--fg-primary); }
+.toolbar-btn.active { background: var(--accent-light); color: var(--accent); }
+.toolbar-btn svg { width: 16px; height: 16px; }
+
+.toolbar-title {
+  font: 600 13px var(--font-sans);
+  color: var(--fg-primary);
+}
+
+.search-field {
+  position: relative;
+  width: 280px;
+}
+.search-field input {
+  width: 100%;
+  height: 32px;
+  padding: 0 12px 0 36px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-default);
+  background: var(--bg-glass-strong);
+  color: var(--fg-primary);
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.search-field input::placeholder { color: var(--fg-tertiary); }
+.search-field input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+.search-field svg {
+  position: absolute;
+  left: 12px; top: 50%;
+  transform: translateY(-50%);
+  width: 14px; height: 14px;
+  color: var(--fg-tertiary);
+  pointer-events: none;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  max-width: 100%;
+}
+
+.section {
+  background: var(--bg-card);
+  backdrop-filter: var(--blur-md);
+  -webkit-backdrop-filter: var(--blur-md);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 16px;
+  transition: background var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-normal);
+}
+.section:hover { border-color: var(--border-strong); }
+
+.section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.section-title {
+  font: 600 15px var(--font-sans);
+  color: var(--fg-primary);
+}
+.section-subtitle {
+  font: 400 12px var(--font-sans);
+  color: var(--fg-tertiary);
+  margin-top: 2px;
+}
+.section-note {
+  font: 400 11px var(--font-sans);
+  color: var(--fg-tertiary);
+}
+
+.card {
+  background: var(--bg-card);
+  backdrop-filter: var(--blur-md);
+  -webkit-backdrop-filter: var(--blur-md);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+.card:hover { border-color: var(--border-strong); transform: translateY(-1px); box-shadow: var(--shadow-2); }
+
+.card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.card-title { font: 600 13px var(--font-sans); color: var(--fg-primary); }
+.card-subtitle { font: 400 12px var(--font-sans); color: var(--fg-secondary); }
+.card-icon { width: 24px; height: 24px; color: var(--fg-secondary); flex-shrink: 0; }
+
+.metric-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 96px;
+}
+.metric-label { font: 500 11px var(--font-sans); text-transform: uppercase; letter-spacing: 0.5px; color: var(--fg-tertiary); }
+.metric-value { font: 700 24px var(--font-sans); color: var(--fg-primary); line-height: 1.1; }
+.metric-unit { font: 400 12px var(--font-sans); color: var(--fg-secondary); }
+.metric-icon { width: 20px; height: 20px; color: var(--accent); }
+
+.hero-section {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  margin-bottom: 16px;
+  min-height: 280px;
+  background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+  border: 1px solid var(--border-default);
+}
+.hero-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 80% 0%, rgba(0,122,255,.15) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+.hero-content { position: relative; z-index: 1; }
+.hero-temp { font: 700 clamp(64px, 12vw, 96px) / 1.05 var(--font-sans); letter-spacing: -4px; color: var(--fg-primary); }
+.hero-condition { font: 500 17px var(--font-sans); color: var(--fg-secondary); margin-top: 8px; }
+.hero-location { font: 400 13px var(--font-sans); color: var(--fg-tertiary); margin-top: 4px; display: flex; align-items: center; gap: 6px; }
+.hero-highlow { font: 500 14px var(--font-sans); color: var(--fg-secondary); margin-top: 8px; }
+.hero-art { position: absolute; right: 24px; top: 24px; width: 180px; height: 180px; opacity: 0.7; z-index: 0; pointer-events: none; }
+
+.section-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .section-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .section-grid { grid-template-columns: 1fr; } }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  font: 500 13px var(--font-sans);
+  transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+  white-space: nowrap;
+}
+.btn:active { transform: scale(0.98); }
+.btn-primary {
+  background: var(--accent);
+  color: var(--fg-on-accent);
+  border: none;
+}
+.btn-primary:hover { background: var(--accent-hover); box-shadow: 0 4px 12px var(--accent-light); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--fg-primary);
+  border: 1px solid var(--border-default);
+}
+.btn-secondary:hover { background: var(--bg-quaternary); border-color: var(--border-strong); }
+.btn-ghost {
+  background: transparent;
+  color: var(--fg-secondary);
+}
+.btn-ghost:hover { background: var(--bg-tertiary); color: var(--fg-primary); }
+.btn-destructive {
+  background: transparent;
+  color: var(--error);
+  border: 1px solid var(--error);
+}
+.btn-destructive:hover { background: rgba(255,59,48,.1); }
+
+.segmented {
+  display: inline-flex;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  padding: 3px;
+  gap: 2px;
+}
+.segmented button {
+  padding: 6px 14px;
+  border-radius: calc(var(--radius-full) - 2px);
+  font: 500 12px var(--font-sans);
+  color: var(--fg-secondary);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.segmented button.active {
+  background: var(--accent);
+  color: var(--fg-on-accent);
+  box-shadow: var(--shadow-1);
+}
+.segmented button:not(.active):hover { color: var(--fg-primary); }
+
+.switch {
+  position: relative;
+  width: 44px; height: 26px;
+  border-radius: var(--radius-full);
+  background: var(--bg-quaternary);
+  border: 1px solid var(--border-default);
+  appearance: none;
+  outline: none;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+  flex-shrink: 0;
+}
+.switch:checked { background: var(--accent); border-color: var(--accent); }
+.switch::before {
+  content: '';
+  position: absolute;
+  top: 1px; left: 1px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: var(--shadow-1);
+  transition: transform var(--transition-fast);
+}
+.switch:checked::before { transform: translateX(18px); }
+.switch:focus-visible { box-shadow: 0 0 0 3px var(--accent-light); }
+
+.select {
+  padding: 8px 36px 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--bg-glass-strong) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236e6e73' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center;
+  background-size: 14px;
+  color: var(--fg-primary);
+  appearance: none;
+  outline: none;
+  min-width: 180px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.select:hover { border-color: var(--border-strong); }
+.select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+.select option { background: var(--bg-secondary); color: var(--fg-primary); }
+
+.input {
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--bg-glass-strong);
+  color: var(--fg-primary);
+  outline: none;
+  width: 100%;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.input::placeholder { color: var(--fg-tertiary); }
+.input:hover { border-color: var(--border-strong); }
+.input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+
+.label { font: 500 11px var(--font-sans); color: var(--fg-secondary); margin-bottom: 6px; display: block; text-transform: uppercase; letter-spacing: 0.4px; }
+.caption { font: 400 11px var(--font-sans); color: var(--fg-tertiary); line-height: 1.5; }
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-default) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 4px; border: 2px solid transparent; background-clip: content-box; }
+.scrollbar-thin::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font: 500 10px var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.badge-primary { background: var(--accent-light); color: var(--accent); }
+.badge-success { background: rgba(48,209,88,.15); color: var(--success); }
+.badge-warning { background: rgba(255,159,10,.15); color: var(--warning); }
+.badge-error { background: rgba(255,69,58,.15); color: var(--error); }
+.badge-neutral { background: var(--bg-tertiary); color: var(--fg-secondary); }
+
+.divider { height: 1px; background: var(--border-subtle); margin: 16px 0; }
+
+.tooltip {
+  position: absolute;
+  z-index: 1000;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  font: 400 11px var(--font-sans);
+  color: var(--fg-primary);
+  box-shadow: var(--shadow-3);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.4);
+  backdrop-filter: var(--blur-sm);
+  -webkit-backdrop-filter: var(--blur-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--transition-normal), visibility var(--transition-normal);
+  z-index: 100;
+}
+.modal-overlay.open { opacity: 1; visibility: visible; }
+.modal-sheet {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  min-width: 400px;
+  max-width: 520px;
+  max-height: 80vh;
+  overflow-y: auto;
+  transform: translateY(20px) scale(0.98);
+  transition: transform var(--transition-normal);
+  box-shadow: var(--shadow-4);
+}
+.modal-overlay.open .modal-sheet { transform: translateY(0) scale(1); }
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.modal-title { font: 600 17px var(--font-sans); color: var(--fg-primary); }
+.modal-close { width: 32px; height: 32px; border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; color: var(--fg-secondary); transition: background var(--transition-fast), color var(--transition-fast); }
+.modal-close:hover { background: var(--bg-tertiary); color: var(--fg-primary); }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-quaternary) 50%, var(--bg-tertiary) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-md);
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0);
+  white-space: nowrap; border: 0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --border-subtle: currentColor;
+    --border-default: currentColor;
+    --border-strong: currentColor;
+  }
+}
+/* ---------- App shell ---------- */
+.app-body { display: flex; flex: 1; min-height: 0; }
+.app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+.window-drag { -webkit-app-region: drag; }
+.window-no-drag { -webkit-app-region: no-drag; }
+
+/* ---------- Search field with results ---------- */
+.search-wrap { position: relative; width: 260px; }
+.search-wrap input { width: 100%; height: 28px; padding: 0 30px 0 30px; border-radius: var(--radius-full); border: 1px solid var(--border-default); background: var(--bg-tertiary); color: var(--fg-primary); font: 400 12px var(--font-sans); outline: none; transition: border-color var(--transition-fast), box-shadow var(--transition-fast); }
+.search-wrap input::placeholder { color: var(--fg-tertiary); }
+.search-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+.search-wrap > svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 13px; height: 13px; color: var(--fg-tertiary); pointer-events: none; }
+.search-locate { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: var(--fg-secondary); }
+.search-locate:hover { background: var(--bg-quaternary); color: var(--accent); }
+.search-locate.tracking-location { color: var(--accent); }
+.search-results { position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 40; max-height: 320px; overflow-y: auto; padding: 6px; border-radius: var(--radius-md); border: 1px solid var(--border-default); background: var(--bg-glass-strong); backdrop-filter: var(--blur-lg); -webkit-backdrop-filter: var(--blur-lg); box-shadow: var(--shadow-3); }
+.search-results button { display: flex; align-items: center; gap: 9px; width: 100%; padding: 8px 10px; border-radius: var(--radius-sm); color: var(--fg-primary); text-align: left; transition: background var(--transition-fast); }
+.search-results button:hover { background: var(--accent-light); }
+.search-results button svg { width: 14px; height: 14px; color: var(--fg-tertiary); flex-shrink: 0; }
+.search-results button span { display: flex; flex-direction: column; font: 500 12px var(--font-sans); }
+.search-results button small { font: 400 10px var(--font-sans); color: var(--fg-tertiary); }
+.search-empty { padding: 12px; text-align: center; font: 400 12px var(--font-sans); color: var(--fg-tertiary); }
+
+/* ---------- Status banners ---------- */
+.notice, .stale { display: flex; align-items: center; gap: 12px; padding: 10px 14px; margin-bottom: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-default); background: var(--bg-card); font: 400 12px var(--font-sans); color: var(--fg-secondary); backdrop-filter: var(--blur-md); -webkit-backdrop-filter: var(--blur-md); }
+.notice { border-color: rgba(255,159,10,.35); }
+.stale { border-color: rgba(0,122,255,.3); }
+.notice span, .stale span { flex: 1; }
+.notice button, .stale button { padding: 5px 12px; border-radius: var(--radius-full); border: 1px solid var(--border-default); background: var(--bg-tertiary); color: var(--fg-primary); font: 500 11px var(--font-sans); }
+.notice button:hover, .stale button:hover { background: var(--bg-quaternary); }
+.notice-dismiss { border: none !important; background: transparent !important; color: var(--fg-tertiary) !important; padding: 4px !important; }
+
+/* ---------- Hero ---------- */
+.hero { position: relative; isolation: isolate; overflow: hidden; border-radius: var(--radius-xl); border: 1px solid var(--border-default); padding: 28px 30px; margin-bottom: 16px; min-height: 240px; background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary)); }
+.hero-copy { position: relative; z-index: 1; }
+.temperature { font: 700 clamp(56px, 9vw, 88px)/1 var(--font-sans); letter-spacing: -4px; color: var(--fg-primary); }
+.live-condition { display: flex; align-items: center; gap: 9px; margin-top: 10px; font: 500 15px var(--font-sans); color: var(--fg-secondary); }
+.live-condition svg { color: var(--accent); }
+.live-label { padding: 3px 8px; border-radius: var(--radius-full); font: 600 9px var(--font-sans); letter-spacing: .5px; text-transform: uppercase; background: rgba(48,209,88,.15); color: var(--success); }
+.live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px var(--success); }
+.today-range { margin-top: 6px; font: 400 13px var(--font-sans); color: var(--fg-tertiary); }
+.hero-art { position: absolute; right: 28px; top: 24px; z-index: 0; color: var(--fg-tertiary); opacity: .35; }
+.hero-art svg { width: 120px; height: 120px; }
+.weather-canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -2; pointer-events: none; }
+
+/* ---------- Insight strip ---------- */
+.insight-strip { display: flex; align-items: center; gap: 12px; padding: 12px 16px; margin-bottom: 16px; border-radius: var(--radius-lg); border: 1px solid var(--border-default); background: var(--bg-card); backdrop-filter: var(--blur-md); -webkit-backdrop-filter: var(--blur-md); }
+.insight-icon { width: 28px; height: 28px; border-radius: var(--radius-sm); display: grid; place-items: center; color: var(--accent); background: var(--accent-light); }
+.insight-strip p { flex: 1; margin: 0; font: 400 13px var(--font-sans); color: var(--fg-secondary); }
+.insight-tag { font: 600 9px var(--font-sans); letter-spacing: .6px; text-transform: uppercase; color: var(--fg-tertiary); }
+
+/* ---------- Hourly strip ---------- */
+.hourly-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; }
+.hourly-scroll::-webkit-scrollbar { display: none; }
+.hour-item { flex: 0 0 78px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 8px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); background: var(--bg-tertiary); transition: transform var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast); }
+.hour-item:hover { transform: translateY(-2px); border-color: var(--border-strong); }
+.hour-item.hour-now { background: var(--accent-light); border-color: rgba(0,122,255,.35); }
+.hour-time { font: 500 11px var(--font-sans); color: var(--fg-tertiary); }
+.hour-icon { color: var(--accent); }
+.hour-icon svg { width: 22px; height: 22px; }
+.hour-item strong { font: 600 16px var(--font-sans); color: var(--fg-primary); }
+.hour-rain { display: flex; align-items: center; gap: 3px; font: 400 10px var(--font-sans); color: var(--accent); }
+.hour-amount { font: 400 9px var(--font-sans); color: var(--fg-tertiary); }
+.chart-wrap { height: 150px; margin-top: 14px; }
+
+/* ---------- Daily list ---------- */
+.daily-list { display: flex; flex-direction: column; gap: 2px; }
+.daily-row { display: grid; grid-template-columns: 90px 28px 68px 46px 1fr 46px; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); text-align: left; transition: background var(--transition-fast); }
+.daily-row:hover { background: var(--bg-tertiary); }
+.daily-row.selected { background: var(--accent-light); }
+.daily-day { font: 500 13px var(--font-sans); color: var(--fg-primary); }
+.daily-icon { color: var(--accent); }
+.daily-rain { display: flex; align-items: center; gap: 4px; font: 400 11px var(--font-sans); color: var(--accent); }
+.daily-low { font: 400 13px var(--font-sans); color: var(--fg-tertiary); text-align: right; }
+.daily-high { font: 500 13px var(--font-sans); color: var(--fg-primary); text-align: right; }
+.temp-range { position: relative; height: 4px; border-radius: var(--radius-full); background: var(--bg-quaternary); }
+.temp-range i { position: absolute; top: 0; height: 4px; border-radius: var(--radius-full); background: linear-gradient(90deg, #5ac8fa, var(--accent)); }
+.selected-day { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 12px; padding: 12px 14px; border-radius: var(--radius-md); background: var(--bg-tertiary); font: 400 12px var(--font-sans); color: var(--fg-secondary); }
+
+/* ---------- Plan cards ---------- */
+.plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.plan-card { padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); background: var(--bg-tertiary); }
+.plan-card > span { display: block; font: 500 10px var(--font-sans); letter-spacing: .5px; text-transform: uppercase; color: var(--fg-tertiary); }
+.plan-card > strong { display: block; margin-top: 8px; font: 600 17px var(--font-sans); color: var(--fg-primary); }
+.plan-card > p { margin: 6px 0 0; font: 400 11px var(--font-sans); line-height: 1.5; color: var(--fg-secondary); }
+.plan-note { margin: 12px 0 0; font: 400 11px var(--font-sans); color: var(--fg-tertiary); }
+
+/* ---------- Air quality ---------- */
+.air-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 14px; }
+.air-grid > span { display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: var(--radius-md); background: var(--bg-tertiary); font: 400 11px var(--font-sans); color: var(--fg-tertiary); }
+.air-grid b { font: 600 15px var(--font-sans); color: var(--fg-primary); }
+.aqi-label { padding: 2px 8px; border-radius: var(--radius-full); font-size: 10px; background: rgba(48,209,88,.15); color: var(--success); }
+.outdoor-advice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 12px; }
+.outdoor-advice { padding: 13px; border-radius: var(--radius-md); background: var(--bg-tertiary); }
+.outdoor-advice strong { font: 600 12px var(--font-sans); color: var(--fg-primary); }
+.outdoor-advice p { margin: 6px 0 0; font: 400 11px var(--font-sans); line-height: 1.55; color: var(--fg-secondary); }
+.pollen-panel { margin-top: 12px; padding: 14px; border-radius: var(--radius-md); background: var(--bg-tertiary); }
+.pollen-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.pollen-heading strong { font: 600 12px var(--font-sans); color: var(--fg-primary); }
+.pollen-heading span { font: 400 10px var(--font-sans); color: var(--fg-tertiary); }
+.pollen-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; margin-top: 12px; }
+.pollen-item { display: grid; gap: 3px; padding: 10px; border-radius: var(--radius-sm); background: var(--bg-quaternary); }
+.pollen-item span { font: 400 10px var(--font-sans); color: var(--fg-tertiary); }
+.pollen-item b { font: 600 14px var(--font-sans); color: var(--fg-primary); }
+.pollen-item small { font: 400 9px var(--font-sans); color: var(--fg-tertiary); }
+.pollen-unavailable, .pollen-guidance, .air-disclaimer { margin: 10px 0 0; font: 400 11px var(--font-sans); line-height: 1.55; color: var(--fg-tertiary); }
+.air-disclaimer { margin-top: 14px; }
+
+/* ---------- Official alerts ---------- */
+.official-alert-status { display: flex; align-items: flex-start; gap: 9px; padding: 12px 14px; border-radius: var(--radius-md); background: var(--bg-tertiary); font: 400 12px var(--font-sans); line-height: 1.55; color: var(--fg-secondary); }
+.official-alert-status svg { flex: none; color: var(--warning); }
+.official-alert-card { padding: 14px; margin-top: 10px; border-radius: var(--radius-md); border: 1px solid var(--border-default); border-left: 3px solid var(--fg-tertiary); background: var(--bg-tertiary); }
+.official-alert-card.severity-extreme { border-left-color: var(--error); }
+.official-alert-card.severity-severe { border-left-color: var(--warning); }
+.official-alert-card.severity-moderate { border-left-color: #ffd60a; }
+.official-alert-card.severity-minor { border-left-color: var(--success); }
+.official-alert-card-heading { display: flex; align-items: flex-start; gap: 9px; }
+.official-alert-card-heading strong { font: 600 13px var(--font-sans); color: var(--fg-primary); }
+.severity-pill { flex: none; padding: 3px 8px; border-radius: var(--radius-full); font: 700 9px var(--font-sans); letter-spacing: .4px; text-transform: uppercase; background: var(--bg-quaternary); color: var(--fg-secondary); }
+.severity-pill.severity-extreme { background: rgba(255,69,58,.18); color: var(--error); }
+.severity-pill.severity-severe { background: rgba(255,159,10,.18); color: var(--warning); }
+.severity-pill.severity-moderate { background: rgba(255,214,10,.16); color: #ffd60a; }
+.severity-pill.severity-minor { background: rgba(48,209,88,.16); color: var(--success); }
+.official-alert-event { margin: 6px 0 0; font: 400 11px var(--font-sans); color: var(--fg-tertiary); }
+.official-alert-description { margin: 8px 0 0; font: 400 12px var(--font-sans); line-height: 1.6; color: var(--fg-secondary); white-space: pre-line; }
+.official-alert-card details { margin-top: 8px; font-size: 12px; }
+.official-alert-card summary { cursor: pointer; color: var(--accent); }
+.official-alert-timing { display: flex; align-items: center; gap: 7px; margin-top: 9px; font: 400 11px var(--font-sans); color: var(--fg-tertiary); }
+.official-alert-source { margin-top: 6px; font: 400 10px var(--font-sans); color: var(--fg-tertiary); }
+.official-alert-disclaimer { margin: 12px 0 0; font: 400 10px var(--font-sans); color: var(--fg-tertiary); }
+
+/* ---------- Settings sheet ---------- */
+.settings-sheet { width: 460px; max-width: 92vw; height: 100%; max-height: 100vh; display: flex; flex-direction: column; padding: 0; border-radius: var(--radius-xl) 0 0 var(--radius-xl); border: 1px solid var(--border-default); border-right: none; background: var(--bg-secondary); box-shadow: var(--shadow-4); transform: translateX(40px); opacity: 0; transition: transform var(--transition-normal), opacity var(--transition-normal); overflow: hidden; }
+.modal-overlay.open .settings-sheet { transform: translateX(0); opacity: 1; }
+.settings-heading { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--border-subtle); background: var(--bg-glass); backdrop-filter: var(--blur-md); -webkit-backdrop-filter: var(--blur-md); }
+.settings-heading h2 { margin: 0; font: 600 17px var(--font-sans); color: var(--fg-primary); }
+.settings-heading .eyebrow { margin: 0 0 3px; }
+.settings-body { flex: 1; overflow-y: auto; padding: 18px 22px 28px; }
+.settings-section { margin-bottom: 24px; }
+.settings-section-title { font: 600 11px var(--font-sans); letter-spacing: .6px; text-transform: uppercase; color: var(--fg-tertiary); margin: 0 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border-subtle); }
+.setting-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 9px 0; }
+.setting-row .label { margin: 0; text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 500; color: var(--fg-primary); }
+.setting-row .select { min-width: 160px; }
+.setting-block { margin-bottom: 14px; }
+.setting-block > .label { margin-bottom: 6px; }
+.caption { margin: 6px 0 0; }
+.update-card { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 13px; border-radius: var(--radius-md); background: var(--bg-tertiary); border: 1px solid var(--border-subtle); }
+.update-card strong { font: 600 12px var(--font-sans); }
+.update-card p { margin: 4px 0 0; font: 400 11px var(--font-sans); color: var(--fg-tertiary); }
+.alert-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px; border-radius: var(--radius-md); background: var(--bg-tertiary); border: 1px solid var(--border-subtle); }
+.alert-options legend { padding: 0 6px; font: 500 11px var(--font-sans); color: var(--fg-tertiary); }
+.alert-options label { display: flex; align-items: center; gap: 7px; font: 400 12px var(--font-sans); color: var(--fg-primary); }
+.alert-options input { accent-color: var(--accent); }
+.quiet-hours { padding: 12px; border-radius: var(--radius-md); background: var(--bg-tertiary); border: 1px solid var(--border-subtle); }
+.quiet-hours strong { font: 600 12px var(--font-sans); }
+.quiet-hours > div { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.quiet-hours > div label { display: grid; gap: 5px; font: 400 11px var(--font-sans); color: var(--fg-tertiary); }
+.quiet-hours input { width: 100%; padding: 7px 9px; border-radius: var(--radius-sm); border: 1px solid var(--border-default); background: var(--bg-glass-strong); color: var(--fg-primary); }
+.diagnostics-card { padding: 13px; border-radius: var(--radius-md); background: var(--bg-tertiary); border: 1px solid var(--border-subtle); }
+.diagnostics-card h3 { margin: 0 0 9px; font: 600 12px var(--font-sans); color: var(--fg-primary); }
+.diagnostics-card dl { display: grid; grid-template-columns: minmax(90px,.7fr) 1.3fr; gap: 7px 12px; margin: 0; font: 400 11px var(--font-sans); }
+.diagnostics-card dt { color: var(--fg-tertiary); }
+.diagnostics-card dd { margin: 0; color: var(--fg-secondary); overflow-wrap: anywhere; }
+.saved-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.saved-heading h3 { margin: 0; font: 600 13px var(--font-sans); }
+.saved-heading button { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: var(--radius-full); background: var(--accent-light); color: var(--accent); font: 500 11px var(--font-sans); }
+.saved-place { display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: var(--radius-sm); background: var(--bg-tertiary); margin-bottom: 6px; }
+.saved-place > svg { color: var(--fg-tertiary); flex: none; }
+.saved-place > span { flex: 1; display: flex; flex-direction: column; font: 500 12px var(--font-sans); color: var(--fg-primary); }
+.saved-place small { font: 400 10px var(--font-sans); color: var(--fg-tertiary); }
+.saved-place button { padding: 5px 10px; border-radius: var(--radius-full); background: var(--bg-quaternary); color: var(--fg-secondary); font: 500 11px var(--font-sans); }
+.saved-place button:hover { background: var(--accent-light); color: var(--accent); }
+.saved-place button[aria-pressed="true"] { background: var(--accent); color: var(--fg-on-accent); }
+.clear-data-button { width: 100%; margin-top: 12px; padding: 9px; border-radius: var(--radius-md); border: 1px solid rgba(255,69,58,.35); background: transparent; color: var(--error); font: 500 12px var(--font-sans); }
+.clear-data-button:hover { background: rgba(255,69,58,.1); }
+
+/* ---------- Widget ----------
+   The widget lives in its own transparent, frameless window. Three things have
+   to be true for it to look right:
+
+   1. The window is genuinely see-through. `body` paints an opaque background
+      for the main app, which would otherwise fill the widget's window with a
+      solid rectangle and defeat both the transparency and the rounded
+      corners. The widget route opts out of it.
+   2. The card carries its own contrast, because behind it is the user's
+      desktop. The card surface is a translucent panel and a scrim sits
+      between the sky and the text.
+   3. The theme actually changes the colours. The widget used to hardcode
+      every colour, so switching to the light theme left dark text on a dark
+      card.
+
+   Paint order inside the widget:
+        -3  canvas     the animated sky
+        -2  ::before   the card surface
+        -1  ::after    the readability scrim
+             content   the text, in flow, on top of all of it.
+
+   The card surface has to sit *above* the canvas. The canvas paints the sky
+   opaquely, so a surface underneath it was never seen: the card's translucent
+   panel, its border and the contrast it carries all disappeared, and the text
+   was left sitting on the raw sky. Over a bright clear-day sky that put the
+   dark theme's white text at a median contrast of 2.67:1 - well under the
+   4.5:1 that has to be readable. With the surface above the canvas the sky
+   still shows through the translucent panel, the card reads as glass, and the
+   text sits on the panel's own background. */
+body:has(.weather-widget) { background: transparent; }
+
+.weather-widget {
+  height: 100vh; width: 100vw;
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column;
+  /* The widget fills its window exactly, so the window's size IS the
+     widget's size. Every size below is expressed against `--w`, which
+     tracks the window, so the card keeps the same proportions at every size
+     preference and nothing is ever clipped. The fixed pixel sizes that were
+     here before did not fit: at the "75%" option the text stack was 119px
+     tall in a 112px box, and the place name was squeezed out of existence. */
+  --w: clamp(9px, min(6.84vh, 3.93vw), 26px);
+  font-size: var(--w);
+  padding: calc(var(--w) * 1.538);
+  border-radius: var(--radius-lg);
+  box-sizing: border-box;
+  font-family: var(--font-sans);
+  /* Widget movement is handled by the pointer/IPC drag code in the header.
+     Native drag regions on a transparent window can swallow button clicks. */
+  -webkit-app-region: no-drag;
+  /* The theme variables below are set here rather than on .theme-light, so
+     the widget works whichever way the theme is chosen. */
+  --widget-surface: linear-gradient(145deg, rgba(10,18,34,.95), rgba(20,44,74,.90));
+  --widget-fg: #f5f8ff;
+  --widget-fg-muted: #b9cbdd;
+  --widget-fg-accent: #f2c680;
+  --widget-fg-place: #ffffff;
+  --widget-scrim: linear-gradient(180deg, rgba(6,10,18,.25) 0%, rgba(6,10,18,.10) 50%, rgba(6,10,18,.25) 100%);
+  --widget-border: rgba(255,255,255,.12);
+  --widget-close-fg: #eaf3ff;
+}
+.weather-widget.theme-light {
+  --widget-surface: linear-gradient(145deg, rgba(255,255,255,.92), rgba(255,255,255,.82));
+  --widget-fg: #1d1d1f;
+  --widget-fg-muted: #3a3a40;
+  --widget-fg-accent: #8b5600;
+  --widget-fg-place: #000000;
+  --widget-scrim: linear-gradient(180deg, rgba(255,255,255,.34) 0%, rgba(255,255,255,.20) 50%, rgba(255,255,255,.34) 100%);
+  --widget-border: rgba(0,0,0,.10);
+  --widget-close-fg: #1d1d1f;
+}
+
+/* `.theme-light` and `.theme-dark` also match the widget root, and they set
+   `background-color` and `color`. They come later in the file, so the widget
+   needs a more specific rule to win.
+
+   The background matters more than it looks. The root is a positioned element
+   with `z-index: auto`, and such an element paints its own background in step
+   8 of the paint order - *above* the negatively z-indexed canvas in step 3.
+   The opaque `var(--bg-primary)` fill therefore covered the entire animated
+   sky, and the widget rendered as a flat, frozen card. The card surface is
+   the ::before layer instead; the root itself must stay transparent. */
+.weather-widget.theme-light,
+.weather-widget.theme-dark {
+  background-color: transparent;
+  color: var(--widget-fg);
+}
+.weather-widget::before {
+  content: '';
+  position: absolute; inset: 0;
+  z-index: -2;
+  border-radius: inherit;
+  background: var(--widget-surface);
+}
+.weather-widget::after {
+  content: '';
+  position: absolute; inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: var(--widget-scrim);
+}
+.weather-widget .weather-canvas { z-index: -3; border-radius: inherit; }
+
+.widget-header {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: calc(var(--w) * -1.538);
+  margin-bottom: calc(var(--w) * 0.769);
+  padding: calc(var(--w) * 0.769) calc(var(--w) * 1.154);
+  -webkit-app-region: no-drag;
+  cursor: grab;
+  user-select: none;
+}
+.widget-header .widget-place {
+  font: 600 calc(var(--w) * 1.077) var(--font-sans);
+  max-width: 70%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--widget-fg-place);
+  cursor: grab;
+}
+.widget-close {
+  width: calc(var(--w) * 1.692);
+  height: calc(var(--w) * 1.692);
+  display: grid;
+  place-items: center;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--widget-close-fg);
+  position: relative;
+  z-index: 3;
+  flex: 0 0 auto;
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
+}
+.widget-close:hover { background: rgba(127,127,127,.18); }
+.widget-close svg { width: calc(var(--w) * 1.077); height: calc(var(--w) * 1.077); }
+
+.widget-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(var(--w) * 0.231);
+  width: 100%;
+  height: 100%;
+  justify-content: center;
+  text-align: left;
+  background: transparent;
+  color: inherit;
+  -webkit-app-region: no-drag;
+}
+
+.widget-reading { display: flex; align-items: center; gap: calc(var(--w) * 0.923); font: 500 calc(var(--w) * 4.0) var(--font-sans); letter-spacing: calc(var(--w) * -0.154); }
+.widget-reading > span { display: grid; place-items: center; color: var(--widget-fg-accent); }
+.widget-reading > span svg { width: calc(var(--w) * 2.615); height: calc(var(--w) * 2.615); }
+.widget-content > strong { font: 600 calc(var(--w) * 1.077) var(--font-sans); }
+.widget-summary { font: 400 calc(var(--w) * 0.769) var(--font-sans); color: var(--widget-fg-muted); }
+
+/* The reduced-motion preference is applied as a class on the widget root,
+   but there was no rule behind it anywhere, so it did nothing. The widget is
+   not inside `.app`, so it needs its own. */
+.weather-widget.motion-off *,
+.weather-widget.motion-off *::before,
+.weather-widget.motion-off *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* ---------- Map ---------- */
+.map-wrap { height: 320px; position: relative; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-default); }
+.weather-map { height: 100%; width: 100%; background: var(--bg-tertiary); }
+.leaflet-container { font-family: var(--font-sans); }
+.leaflet-control-attribution { font-size: 9px !important; background: rgba(20,20,22,.8) !important; color: #c5c5c7 !important; }
+.leaflet-control-attribution a { color: #5ac8fa !important; }
+.leaflet-bar a { background: var(--bg-tertiary) !important; color: var(--fg-primary) !important; border-color: var(--border-default) !important; }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--bg-secondary); color: var(--fg-primary); }
+.map-location { position: absolute; top: 10px; left: 10px; z-index: 500; display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: var(--radius-full); border: 1px solid var(--border-default); background: rgba(20,20,22,.8); color: var(--fg-primary); font: 500 11px var(--font-sans); }
+.radar-controls { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-top: 12px; }
+.radar-source { display: flex; align-items: center; gap: 7px; color: var(--accent); font: 500 11px var(--font-sans); }
+.radar-timeline { display: flex; align-items: center; gap: 9px; min-width: 55%; color: var(--fg-secondary); font: 400 10px var(--font-sans); }
+.radar-timeline button { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--bg-tertiary); color: var(--fg-primary); }
+.radar-timeline input { flex: 1; accent-color: var(--accent); min-width: 70px; }
+.map-disclaimer { margin: 10px 0 0; font: 400 10px var(--font-sans); color: var(--fg-tertiary); }
+.map-error { color: var(--error); }
+
+/* ---------- Footer ---------- */
+.footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; padding: 14px 4px 4px; font: 400 10px var(--font-sans); color: var(--fg-tertiary); }
+
+/* ---------- Misc ---------- */
+.eyebrow { margin: 0 0 4px; font: 600 10px var(--font-sans); letter-spacing: 1.2px; text-transform: uppercase; color: var(--accent); }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.secondary-action { padding: 8px 13px; border-radius: var(--radius-full); background: var(--bg-tertiary); border: 1px solid var(--border-default); color: var(--fg-primary); font: 500 12px var(--font-sans); }
+.secondary-action:hover { background: var(--bg-quaternary); }
+.additional-conditions { margin-top: 12px; }
+.additional-conditions summary { cursor: pointer; font: 500 12px var(--font-sans); color: var(--accent); padding: 6px 0; }
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.map-loading { padding: 48px; text-align: center; color: var(--fg-tertiary); }
+
+/* ---------- Accessible data table ---------- */
+.accessible-table-wrap { max-height: 220px; overflow: auto; margin-top: 12px; border: 1px solid var(--border-default); border-radius: var(--radius-md); }
+.accessible-table-wrap table { width: 100%; border-collapse: collapse; text-align: left; font: 400 11px var(--font-sans); }
+.accessible-table-wrap caption { padding: 10px 12px; color: var(--fg-tertiary); text-align: left; }
+.accessible-table-wrap th, .accessible-table-wrap td { padding: 7px 12px; border-bottom: 1px solid var(--border-subtle); }
+.accessible-table-wrap thead { position: sticky; top: 0; background: var(--bg-tertiary); }
+.accessible-table-wrap td { color: var(--fg-secondary); }
+
+/* ---------- High contrast ---------- */
+.high-contrast { --fg-primary: #fff; --fg-secondary: #e6e6e6; --fg-tertiary: #c7c7cc; --border-subtle: rgba(255,255,255,.42); --border-default: rgba(255,255,255,.55); --border-strong: rgba(255,255,255,.7); }
+.high-contrast .card, .high-contrast .section, .high-contrast .plan-card, .high-contrast .hour-item, .high-contrast .official-alert-card { border-color: rgba(255,255,255,.55); }
+.high-contrast :focus-visible { outline: 3px solid #ffdf77 !important; outline-offset: 3px !important; }
+.high-contrast .caption, .high-contrast .plan-note { color: #e6e6e6; }
+
+/* ---------- Scene backgrounds ---------- */
+/* The scene colour classes are applied to `.app` itself, but they now only set
+   a custom property. The colour is painted by a `::before` layer that sits
+   beneath the animated canvas, so the canvas is actually visible. */
+.scene-sunny { --scene-bg: #1b2433; }
+.scene-partly { --scene-bg: #182130; }
+.scene-cloudy, .scene-fog { --scene-bg: #1a2130; }
+.scene-rain, .scene-heavy-rain { --scene-bg: #121a28; }
+.scene-storm { --scene-bg: #10131f; }
+.scene-snow { --scene-bg: #1a2233; }
+.scene-night, .scene-cloudy-night, .scene-partly-night { --scene-bg: #0d1120; }
+
+/* ---------- Explicit theme overrides (app preference wins over OS) ---------- */
+.theme-light {
+  --bg-primary: #f5f5f7; --bg-secondary: #ffffff; --bg-tertiary: #f2f2f5; --bg-quaternary: #e5e5e7;
+  --bg-card: rgba(255,255,255,.82); --bg-card-hover: rgba(255,255,255,.94);
+  --bg-glass: rgba(255,255,255,.62); --bg-glass-strong: rgba(255,255,255,.86);
+  --fg-primary: #1d1d1f; --fg-secondary: #6e6e73; --fg-tertiary: #a1a1a6; --fg-inverse: #f5f5f7;
+  --border-subtle: rgba(0,0,0,.07); --border-default: rgba(0,0,0,.1); --border-strong: rgba(0,0,0,.16);
+  --sidebar-bg: rgba(255,255,255,.9); --sidebar-border: rgba(0,0,0,.06);
+  --shadow-1: 0 1px 2px rgba(0,0,0,.06), 0 1px 1px rgba(0,0,0,.04);
+  --shadow-2: 0 4px 10px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.05);
+  --shadow-3: 0 12px 26px rgba(0,0,0,.1), 0 4px 8px rgba(0,0,0,.06);
+  --shadow-4: 0 20px 44px rgba(0,0,0,.14), 0 8px 16px rgba(0,0,0,.08);
+  background-color: var(--bg-primary);
+  color: var(--fg-primary);
+}
+.theme-dark {
+  --bg-primary: #1d1d1f; --bg-secondary: #141416; --bg-tertiary: #2c2c2e; --bg-quaternary: #3a3a3c;
+  --bg-card: rgba(28,28,30,.72); --bg-card-hover: rgba(38,38,40,.8);
+  --bg-glass: rgba(28,28,30,.56); --bg-glass-strong: rgba(28,28,30,.72);
+  --fg-primary: #f5f5f7; --fg-secondary: #a1a1a6; --fg-tertiary: #6e6e73; --fg-inverse: #1d1d1f;
+  --border-subtle: rgba(255,255,255,.08); --border-default: rgba(255,255,255,.12); --border-strong: rgba(255,255,255,.18);
+  --sidebar-bg: rgba(22,22,24,.88); --sidebar-border: rgba(255,255,255,.06);
+  background-color: var(--bg-primary);
+  color: var(--fg-primary);
+}
+.app.theme-light .scene-sunny { --scene-bg: #eef1f5; }
+.app.theme-light .scene-partly { --scene-bg: #eceff3; }
+.app.theme-light .scene-cloudy, .app.theme-light .scene-fog { --scene-bg: #e9ecf0; }
+.app.theme-light .scene-rain, .app.theme-light .scene-heavy-rain { --scene-bg: #dde3ea; }
+.app.theme-light .scene-storm { --scene-bg: #d9dee6; }
+.app.theme-light .scene-snow { --scene-bg: #eef1f6; }
+.app.theme-light .scene-night, .app.theme-light .scene-cloudy-night, .app.theme-light .scene-partly-night { --scene-bg: #2b3242; }
+.app.theme-light .scene-night, .app.theme-light .scene-cloudy-night, .app.theme-light .scene-partly-night { --fg-primary: #f5f5f7; --fg-secondary: #c7c7cc; --fg-tertiary: #a1a1a6; }
+
+/* The widget has its own root, so the `.app`-scoped light scene colours do
+   not reach it. These are the same values. */
+.weather-widget.theme-light .scene-sunny { --scene-bg: #eef1f5; }
+.weather-widget.theme-light .scene-partly { --scene-bg: #eceff3; }
+.weather-widget.theme-light .scene-cloudy, .weather-widget.theme-light .scene-fog { --scene-bg: #e9ecf0; }
+.weather-widget.theme-light .scene-rain, .weather-widget.theme-light .scene-heavy-rain { --scene-bg: #dde3ea; }
+.weather-widget.theme-light .scene-storm { --scene-bg: #d9dee6; }
+.weather-widget.theme-light .scene-snow { --scene-bg: #eef1f6; }
+.weather-widget.theme-light .scene-night, .weather-widget.theme-light .scene-cloudy-night, .weather-widget.theme-light .scene-partly-night { --scene-bg: #2b3242; }
+
+/* ---------- Transparent panels ---------- */
+/* With this on, the content tiles stop painting a solid fill so the live
+   animated weather canvas shows through them. They keep their borders, radius
+   and a reduced blur, so they still read as panels - they are just made of
+   glass rather than painted card.
+
+   Every rule here is scoped to `.app.transparent-panels`, so the normal look
+   is completely untouched when the setting is off.
+
+   The scene is drawn in the root stacking context (`.app` is positioned but
+   has no z-index, so it is not a stacking context), in this order:
+
+     -3   .app.has-weather-scene::before   flat scene colour
+     -2   canvas.weather-canvas             the animated sky
+     -1   .app.has-weather-scene::after     readability scrim
+          ── in-flow content on top ──
+
+   The scrim sits above the sky and below the text. It has to be at -1 and
+   not 0: a positioned element with z-index 0 paints after the in-flow
+   content and would cover the text. */
+.app.transparent-panels {
+  --panel-fill: rgba(10,13,20,.46);
+  --subtile-fill: rgba(10,13,20,.36);
+  --subtile-fill-strong: rgba(10,13,20,.46);
+  --shell-fill: rgba(8,11,18,.32);
+  /* The muted text colours are tuned against an opaque panel of a known
+     lightness. Over a live sky the panel's lightness is whatever the weather
+     happens to be, so the muted tones are pushed apart here to keep the
+     secondary text readable against the worst case - a bright moonlit sky
+     behind a dark panel, or a dark sky behind a light one. */
+  --fg-secondary: #c7c7cc;
+  --fg-tertiary: #cfcfd4;
+  /* The system blue is built for a white background. On a dark panel seen
+     against a bright sky it is nearly invisible, so the transparent theme
+     uses a lighter blue that holds up against a mid-tone background. */
+  --accent: #9ecfff;
+  --accent-hover: #bcdfff;
+  --accent-light: rgba(158,207,255,.18);
+  --accent-muted: rgba(158,207,255,.12);
+  /* Blurring an animated canvas is the most expensive thing on this screen,
+     so the radii are pulled well down from the 20px/40px the opaque panels
+     use. 8px still reads as glass. */
+  --panel-blur: blur(8px);
+  --subtile-blur: blur(6px);
+}
+.app.theme-light.transparent-panels {
+  --panel-fill: rgba(255,255,255,.42);
+  --subtile-fill: rgba(255,255,255,.34);
+  --subtile-fill-strong: rgba(255,255,255,.44);
+  --shell-fill: rgba(255,255,255,.36);
+  --fg-secondary: #3d3d42;
+  --fg-tertiary: #5c5c61;
+  --accent: #0062cc;
+  --accent-hover: #004a9e;
+  --accent-light: rgba(0,98,204,.14);
+  --accent-muted: rgba(0,98,204,.09);
+}
+
+/* A gentle darkening across the whole window, but thin enough that a clear-
+   day sky still shows through. It covers the window edge to edge so it has no
+   visible edge of its own, and it takes enough off the sky for white text to
+   stay readable over a bright clear-day sky. */
+.app.has-weather-scene.transparent-panels::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(6,10,18,.34) 0%, rgba(6,10,18,.22) 50%, rgba(6,10,18,.34) 100%);
+}
+/* A lightening instead, so bright text over a bright clear-day sky stays
+   readable without washing the sky out. */
+.app.theme-light.has-weather-scene.transparent-panels::after {
+  background: linear-gradient(180deg, rgba(255,255,255,.34) 0%, rgba(255,255,255,.24) 50%, rgba(255,255,255,.34) 100%);
+}
+
+/* Text that sits directly over the live sky needs an edge of its own.
+   Without a flat panel behind it there is no guaranteed contrast, so a soft
+   shadow gives every glyph a local background to sit against. This is the
+   one thing that makes small text reliable over a moving scene.
+
+   It is applied to the content panels rather than to `.app` as a whole,
+   because the overlays - the settings sheet, the modals, the inputs - paint
+   their own opaque background and a shadow there would halo the text. */
+.app.transparent-panels .section,
+.app.transparent-panels .card,
+.app.transparent-panels .insight-strip,
+.app.transparent-panels .notice,
+.app.transparent-panels .stale,
+.app.transparent-panels .hero,
+.app.transparent-panels .titlebar,
+.app.transparent-panels .sidebar {
+  text-shadow: 0 1px 3px rgba(0,0,0,.6);
+}
+.app.theme-light.transparent-panels .section,
+.app.theme-light.transparent-panels .card,
+.app.theme-light.transparent-panels .insight-strip,
+.app.theme-light.transparent-panels .notice,
+.app.theme-light.transparent-panels .stale,
+.app.theme-light.transparent-panels .hero,
+.app.theme-light.transparent-panels .titlebar,
+.app.theme-light.transparent-panels .sidebar {
+  text-shadow: 0 1px 3px rgba(255,255,255,.9);
+}
+/* The panels that carry their own opaque chip do not need the shadow. */
+.app.transparent-panels .live-label,
+.app.transparent-panels .aqi-label,
+.app.transparent-panels .badge-success {
+  text-shadow: none;
+}
+
+/* The status badges carry their own coloured text, and green-on-sky is the
+   worst case of the lot. Each badge gets a solid backing chip in the
+   transparent theme so the colour has something to sit on. */
+.app.transparent-panels .live-label {
+  background: #1d4f2c;
+  color: #86e8a2;
+}
+.app.transparent-panels .aqi-label,
+.app.transparent-panels .badge-success {
+  background: #1d4f2c;
+  color: #86e8a2;
+}
+.app.theme-light.transparent-panels .live-label,
+.app.theme-light.transparent-panels .aqi-label,
+.app.theme-light.transparent-panels .badge-success {
+  background: #d6f2dd;
+  color: #0f5c28;
+}
+
+/* The big panels: sections, cards, the insight strip and the hero. */
+.app.transparent-panels .section,
+.app.transparent-panels .card,
+.app.transparent-panels .insight-strip,
+.app.transparent-panels .notice,
+.app.transparent-panels .stale {
+  background: var(--panel-fill);
+  backdrop-filter: var(--panel-blur);
+  -webkit-backdrop-filter: var(--panel-blur);
+}
+/* The hero keeps its diagonal gradient, but it is built from the same fill
+   variable as the other panels so the two never drift apart. */
+.app.transparent-panels .hero {
+  background: linear-gradient(135deg, var(--panel-fill), var(--subtile-fill));
+  backdrop-filter: var(--panel-blur);
+  -webkit-backdrop-filter: var(--panel-blur);
+}
+
+/* The smaller tiles nested inside those panels. */
+.app.transparent-panels .plan-card,
+.app.transparent-panels .air-grid > span,
+.app.transparent-panels .outdoor-advice,
+.app.transparent-panels .pollen-panel,
+.app.transparent-panels .pollen-item,
+.app.transparent-panels .official-alert-status,
+.app.transparent-panels .official-alert-card,
+.app.transparent-panels .selected-day,
+.app.transparent-panels .hour-item {
+  background: var(--subtile-fill);
+  backdrop-filter: var(--subtile-blur);
+  -webkit-backdrop-filter: var(--subtile-blur);
+}
+.app.transparent-panels .pollen-item {
+  background: var(--subtile-fill-strong);
+}
+
+/* The app shell, so the sky runs edge to edge behind the whole window. */
+.app.transparent-panels .titlebar {
+  background: var(--shell-fill);
+  backdrop-filter: var(--panel-blur);
+  -webkit-backdrop-filter: var(--panel-blur);
+}
+.app.transparent-panels .sidebar {
+  background: var(--shell-fill);
+  backdrop-filter: var(--panel-blur);
+  -webkit-backdrop-filter: var(--panel-blur);
+}
+
+/* macOS keeps native traffic lights, so the title bar content shifts right. */
+.app.mac-platform .titlebar { padding-left: 78px; }
+
+/* ---------- Window chrome ---------- */
+/* The in-app minimize, maximize and close buttons were removed. The title bar
+   is now just the place name and the search box, with nothing else competing
+   for attention at the right-hand end.
+
+   The window is frameless on Windows, so the operating system's own controls
+   are the way in: Alt+F4 closes it, and the taskbar button and its jump list
+   cover minimizing and restoring. On macOS the native frame keeps its own
+   traffic lights. */
+.titlebar-spacer { flex: 1; }
+.titlebar-actions { gap: 2px; }
