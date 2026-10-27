@@ -22,9 +22,8 @@ contextBridge.exposeInMainWorld('atmosphere', Object.freeze({
     return () => ipcRenderer.removeListener('settings:changed', listener);
   },
   resizeWidget: (scale) => ipcRenderer.invoke('widget:resize', scale),
-  beginWidgetDrag: (x, y) => ipcRenderer.send('widget:drag-start', x, y),
-  moveWidgetDrag: (x, y) => ipcRenderer.send('widget:drag-move', x, y),
-  endWidgetDrag: () => ipcRenderer.send('widget:drag-end'),
+  startWidgetDrag: () => ipcRenderer.invoke('widget:start-drag'),
+  moveWidget: (dx, dy) => ipcRenderer.invoke('widget:move', dx, dy),
   // The widget subscribes to this so it re-fetches when the main window does.
   onWidgetRefresh: (callback) => {
     if (typeof callback !== 'function') return () => {};

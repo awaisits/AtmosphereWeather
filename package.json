@@ -1,6 +1,6 @@
 {
     "name": "atmosphere-weather",
-    "version": "1.0.59",
+    "version": "1.0.70",
     "private": true,
     "type": "module",
     "description": "Atmosphere Weather for Windows 11",

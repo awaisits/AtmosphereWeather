@@ -4,12 +4,10 @@ const fs = require('node:fs');
 const { lookup } = require('node:dns/promises');
 const { isIP, BlockList } = require('node:net');
 const { autoUpdater } = require('electron-updater');
-const { createWidgetDragController } = require('./widget-drag.cjs');
 
 app.setAppUserModelId('com.atmosphere.weather');
 let win;
 let widgetWin;
-const widgetDrag = createWidgetDragController();
 let tray;
 let backgroundMode = false;
 let isQuitting = false;
@@ -114,6 +112,7 @@ function sanitizeSettings(value) {
     quietHoursStart: typeof value.quietHoursStart === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value.quietHoursStart) ? value.quietHoursStart : '',
     quietHoursEnd: typeof value.quietHoursEnd === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value.quietHoursEnd) ? value.quietHoursEnd : '',
     highContrast: value.highContrast === true,
+    pureBackground: value.pureBackground === true,
     widgetOpacity: [25,50,75,100].includes(Number(value.widgetOpacity)) ? Number(value.widgetOpacity) : 100,
     widgetScale: [75,100,125,150].includes(Number(value.widgetScale)) ? Number(value.widgetScale) : 100,
   };
@@ -278,7 +277,7 @@ function openWidget() {
   widgetWin.webContents.on('will-navigate',(event,url)=>{if(!isTrustedAppUrl(url))event.preventDefault();});
   widgetWin.webContents.on('will-attach-webview',event=>event.preventDefault());
   if (app.isPackaged) widgetWin.loadURL('atmosphere://app/index.html?widget=1'); else widgetWin.loadURL('http://127.0.0.1:5173/?widget=1');
-  widgetWin.on('closed',()=>{widgetWin=null;widgetDrag.end();});
+  widgetWin.on('closed',()=>{widgetWin=null;});
 }
 function enableTray() {
   if (tray) return;
@@ -344,22 +343,28 @@ app.whenReady().then(() => {
     if (!fromMainWindow(event) || event.sender !== widgetWin?.webContents) return false;
     return resizeWidget(scale);
   });
-  ipcMain.on('widget:drag-start', (event, x, y) => {
-    if (!fromMainWindow(event) || event.sender !== widgetWin?.webContents) return;
-    widgetDrag.start(widgetWin, x, y);
-  });
-  ipcMain.on('widget:drag-move', (event, x, y) => {
-    if (!fromMainWindow(event) || event.sender !== widgetWin?.webContents) return;
-    widgetDrag.move(widgetWin, x, y);
-  });
-  ipcMain.on('widget:drag-end', event => {
-    if (fromMainWindow(event) && event.sender === widgetWin?.webContents) widgetDrag.end();
-  });
   // The main window asks the widget to re-fetch after a refresh, so the two
   // windows never show readings from different moments.
   ipcMain.handle('widget:refresh', (event) => {
     if (!fromMainWindow(event)) return false;
     return refreshWidget();
+  });
+  let widgetDragStartBounds = null;
+  ipcMain.handle('widget:start-drag', (event) => {
+    if (!fromMainWindow(event) || event.sender !== widgetWin?.webContents || !widgetWin || widgetWin.isDestroyed()) return null;
+    widgetDragStartBounds = widgetWin.getBounds();
+    return widgetDragStartBounds;
+  });
+  ipcMain.handle('widget:move', (event, dx, dy) => {
+    if (!fromMainWindow(event) || event.sender !== widgetWin?.webContents || !widgetWin || widgetWin.isDestroyed() || !widgetDragStartBounds) return false;
+    if (typeof dx !== 'number' || typeof dy !== 'number' || !Number.isFinite(dx) || !Number.isFinite(dy)) return false;
+    widgetWin.setBounds({
+      x: Math.round(widgetDragStartBounds.x + dx),
+      y: Math.round(widgetDragStartBounds.y + dy),
+      width: widgetDragStartBounds.width,
+      height: widgetDragStartBounds.height,
+    });
+    return true;
   });
   ipcMain.handle('theme:system', (event) => fromMainWindow(event) && nativeTheme.shouldUseDarkColors ? 'dark' : 'light');
   ipcMain.handle('updates:status', event => fromMainWindow(event) ? updateStatus : null);

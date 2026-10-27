@@ -45,9 +45,18 @@ export default function WeatherCanvas({ weather, enabled, nightBackdrop = false 
 
     let width = 1, height = 1, raf = 0, lastTime = 0, frameQueued = false;
     let particles: Particle[] = [], clouds: Cloud[] = [], stars: Star[] = [];
+    let shootingStars: { x: number; y: number; length: number; speed: number; opacity: number; life: number; maxLife: number }[] = [];
+    let dustParticles: { x: number; y: number; vx: number; vy: number; size: number; alpha: number; phase: number }[] = [];
+    let ripples: { x: number; y: number; radius: number; maxRadius: number; alpha: number }[] = [];
     let flashUntil = 0, nextFlash = 0;
     let tintKey = '';
     let mouseX = 0.5, mouseY = 0.5;
+
+    const rebuildDust = () => {
+      dustParticles = Array.from({ length: 40 }, () => ({
+        x: rand(0, width), y: rand(0, height), vx: rand(-0.2, 0.4), vy: rand(-0.15, 0.1), size: rand(1, 2.4), alpha: rand(0.12, 0.38), phase: rand(0, Math.PI * 2)
+      }));
+    };
 
     const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     const rain = weather.code >= 51 && weather.code <= 67 || weather.code >= 80 && weather.code <= 82 || weather.code >= 95;
@@ -192,23 +201,112 @@ export default function WeatherCanvas({ weather, enabled, nightBackdrop = false 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       buildStars();
       rebuildParticles();
+      rebuildDust();
       const t = solar(Date.now());
       tintKey = `${Math.round(t.dayFactor * 10)}-${Math.round(t.golden * 5)}`;
       buildClouds(t.dayFactor, t.golden);
     };
 
     const drawCloud = (c: Cloud, now: number, parallaxX: number) => {
-      const travel = (windX * (0.018 + weather.wind * 0.0035) + parallaxX * 0.0008) * c.depth * now;
+      const gust = Math.sin(now * 0.0015 + c.seed) * (weather.wind * 0.002);
+      const travel = (windX * (0.018 + (weather.wind + gust) * 0.0035) + parallaxX * 0.0008) * c.depth * now;
       const span = width + 840;
       const x = ((c.baseX + travel + 420) % span + span) % span - 420;
       const sway = Math.sin(now * .00004 + c.seed) * 12 * c.depth + windY * weather.wind * .0006 * c.depth;
       const y = c.y + sway;
-      const scale = c.scale * (.7 + c.depth * .5);
+      const shear = 1 + Math.sin(now * 0.0005 + c.seed) * 0.08;
+      const scaleX = c.scale * (.7 + c.depth * .5) * shear;
+      const scaleY = c.scale * (.7 + c.depth * .5);
       const coverage = cloudy ? .18 + weather.cloud / 120 : .1;
       const opacity = clamp(coverage * (.32 + c.depth * .48), .05, .52) * c.opacity;
       ctx.save(); ctx.globalAlpha = opacity;
-      ctx.drawImage(c.sprite, x - 210 * scale, y - 105 * scale, 420 * scale, 210 * scale);
+      ctx.drawImage(c.sprite, x - 210 * scaleX, y - 105 * scaleY, 420 * scaleX, 210 * scaleY);
       ctx.restore();
+    };
+
+    const drawSunrays = (sx: number, sy: number, clock: number, golden: number) => {
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      for (let i = 0; i < 6; i++) {
+        const angle = 0.2 + i * 0.25 + Math.sin(clock * 0.0002 + i) * 0.05;
+        const len = height * 1.2;
+        const grad = ctx.createLinearGradient(sx, sy, sx + Math.cos(angle) * len, sy + Math.sin(angle) * len);
+        const a = (0.04 + golden * 0.06).toFixed(3);
+        grad.addColorStop(0, `rgba(255,240,180,${a})`);
+        grad.addColorStop(0.5, `rgba(255,220,150,${(Number(a) * 0.5).toFixed(3)})`);
+        grad.addColorStop(1, 'rgba(255,220,150,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(sx + Math.cos(angle - 0.08) * len, sy + Math.sin(angle - 0.08) * len);
+        ctx.lineTo(sx + Math.cos(angle + 0.08) * len, sy + Math.sin(angle + 0.08) * len);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+    };
+
+    const drawShootingStars = (nightFactor: number) => {
+      if (nightFactor < 0.6 || cloudy || storm) return;
+      if (Math.random() < 0.006 && shootingStars.length < 2) {
+        shootingStars.push({
+          x: rand(width * 0.1, width * 0.9), y: rand(0, height * 0.3),
+          length: rand(60, 140), speed: rand(8, 14), opacity: rand(0.6, 0.95), life: 0, maxLife: rand(30, 60)
+        });
+      }
+      ctx.save();
+      ctx.lineWidth = 1.5;
+      ctx.lineCap = 'round';
+      for (let i = shootingStars.length - 1; i >= 0; i--) {
+        const s = shootingStars[i];
+        s.life++;
+        s.x += s.speed;
+        s.y += s.speed * 0.6;
+        const fade = 1 - s.life / s.maxLife;
+        if (fade <= 0) { shootingStars.splice(i, 1); continue; }
+        const grad = ctx.createLinearGradient(s.x, s.y, s.x - s.length, s.y - s.length * 0.6);
+        grad.addColorStop(0, `rgba(255,255,255,${(s.opacity * fade).toFixed(3)})`);
+        grad.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.strokeStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(s.x - s.length, s.y - s.length * 0.6);
+        ctx.stroke();
+      }
+      ctx.restore();
+    };
+
+    const drawDust = (dt: number, now: number) => {
+      const tNow = solar(Date.now());
+      if (tNow.dayFactor < 0.3 || rain || snow || storm || fog) return;
+      for (const d of dustParticles) {
+        d.phase += dt * 0.002;
+        d.x += (d.vx + windX * 0.5 + Math.sin(d.phase) * 0.4) * dt;
+        d.y += (d.vy + Math.cos(d.phase * 0.7) * 0.2) * dt;
+        if (d.x > width + 10) d.x = -10;
+        if (d.x < -10) d.x = width + 10;
+        if (d.y > height + 10) d.y = -10;
+        if (d.y < -10) d.y = height + 10;
+        const shimmer = 0.4 + 0.6 * Math.sin(now * 0.003 + d.phase);
+        ctx.fillStyle = `rgba(255,245,210,${(d.alpha * shimmer).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    };
+
+    const drawRipples = (dt: number) => {
+      ctx.lineWidth = 1;
+      for (let i = ripples.length - 1; i >= 0; i--) {
+        const r = ripples[i];
+        r.radius += dt * 1.8;
+        r.alpha -= dt * 0.03;
+        if (r.alpha <= 0 || r.radius >= r.maxRadius) { ripples.splice(i, 1); continue; }
+        ctx.strokeStyle = `rgba(200,230,255,${r.alpha.toFixed(3)})`;
+        ctx.beginPath();
+        ctx.ellipse(r.x, r.y, r.radius, r.radius * 0.35, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     };
 
     const drawStars = (now: number, nightFactor: number) => {
@@ -291,6 +389,7 @@ export default function WeatherCanvas({ weather, enabled, nightBackdrop = false 
       const sunObscured = storm || fog || rain || snow || (cloudy && weather.cloud > 72);
       if (t.sunVisible && !sunObscured) {
         const sx = width * t.sunX, sy = height * t.sunY, sr = Math.min(height * 0.22, 50);
+        if (t.golden > 0.05) drawSunrays(sx, sy, clock, t.golden);
         const pulse = 1 + Math.sin(clock * 0.0005) * 0.02;
         const sunGrad = ctx.createRadialGradient(sx - 6, sy - 6, 4, sx, sy, sr * pulse);
         if (t.golden > 0.2) { sunGrad.addColorStop(0, '#fff1d0'); sunGrad.addColorStop(.5, '#ffc470'); sunGrad.addColorStop(1, '#f5944d'); }
@@ -389,7 +488,9 @@ export default function WeatherCanvas({ weather, enabled, nightBackdrop = false 
         ctx.strokeStyle = `rgba(225,240,255,${a.toFixed(3)})`;
         ctx.lineWidth = p.size * p.z * 0.9;
         ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - (4 + windX * 9) * p.z, p.y + 14 * p.z); ctx.stroke();
-        // Splash on ground (subtle)
+        if (p.y > height - 20 && Math.random() < 0.002 * p.z && ripples.length < 15) {
+          ripples.push({ x: p.x, y: height - 4, radius: 2, maxRadius: rand(8, 16), alpha: rand(0.3, 0.6) });
+        }
         if (p.y > height - 20 && Math.random() < 0.001 * p.z) {
           ctx.fillStyle = `rgba(220,235,255,${0.12 * p.z})`;
           ctx.beginPath(); ctx.arc(p.x, height - 2, rand(1.5, 3), 0, Math.PI); ctx.fill();
@@ -487,6 +588,9 @@ export default function WeatherCanvas({ weather, enabled, nightBackdrop = false 
       for (const c of clouds) drawCloud(c, clock, parallaxX);
       ctx.restore();
       drawFog(clock); drawRain(dt); drawSnow(dt, clock); drawLightning(clock);
+      drawShootingStars(clamp(1 - t.dayFactor * 1.25, 0, 1));
+      drawDust(dt, clock);
+      drawRipples(dt);
 
       // Only ever one animation chain in flight. Guarding on `frameQueued`
       // keeps a stray extra draw() call from spawning a second loop.

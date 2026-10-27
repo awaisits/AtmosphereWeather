@@ -8,8 +8,8 @@ import { version as appVersion } from '../package.json';
 import { isUrduLocale, translate, weatherDescription } from './i18n';
 const WeatherMap = lazy(() => import('./WeatherMap'));
 
-type Preferences = { unit: 'C'|'F'; wind: 'km/h'|'mph'; theme: 'system'|'light'|'dark'; locale: 'system'|'en-US'|'en-GB'|'ur-PK'; geocoderEndpoint: string; animate: boolean; reducedMotion: boolean; transparentPanels: boolean; layout: 'detailed'|'compact'; backgroundMode: boolean; dailyReminder: string; refresh: number; saved: Place[]; active?: Place; locationStatus: string; alerts: boolean; alertCategories: string[]; alertNotified: string[]; officialAlertNotifications: boolean; officialAlertMinimumSeverity: Exclude<OfficialSeverity,'unknown'>; officialAlertNotified: string[]; defaultPlaceId: string; quietHoursStart: string; quietHoursEnd: string; highContrast: boolean; widgetOpacity: number; widgetScale: number };
-const defaults: Preferences = { unit: 'C', wind: 'km/h', theme: 'system', locale: 'system', geocoderEndpoint: 'https://nominatim.openstreetmap.org/reverse', animate: true, reducedMotion: false, transparentPanels: false, layout: 'detailed', backgroundMode: false, dailyReminder: '', refresh: 30, saved: [], locationStatus: 'Location access has not been requested', alerts: false, alertCategories: ['thunderstorm','heavy-rain','high-wind'], alertNotified: [], officialAlertNotifications: false, officialAlertMinimumSeverity: 'moderate', officialAlertNotified: [], defaultPlaceId: '', quietHoursStart: '', quietHoursEnd: '', highContrast: false, widgetOpacity: 100, widgetScale: 100 };
+type Preferences = { unit: 'C'|'F'; wind: 'km/h'|'mph'; theme: 'system'|'light'|'dark'; locale: 'system'|'en-US'|'en-GB'|'ur-PK'; geocoderEndpoint: string; animate: boolean; reducedMotion: boolean; transparentPanels: boolean; pureBackground: boolean; layout: 'detailed'|'compact'; backgroundMode: boolean; dailyReminder: string; refresh: number; saved: Place[]; active?: Place; locationStatus: string; alerts: boolean; alertCategories: string[]; alertNotified: string[]; officialAlertNotifications: boolean; officialAlertMinimumSeverity: Exclude<OfficialSeverity,'unknown'>; officialAlertNotified: string[]; defaultPlaceId: string; quietHoursStart: string; quietHoursEnd: string; highContrast: boolean; widgetOpacity: number; widgetScale: number };
+const defaults: Preferences = { unit: 'C', wind: 'km/h', theme: 'system', locale: 'system', geocoderEndpoint: 'https://nominatim.openstreetmap.org/reverse', animate: true, reducedMotion: false, transparentPanels: false, pureBackground: false, layout: 'detailed', backgroundMode: false, dailyReminder: '', refresh: 30, saved: [], locationStatus: 'Location access has not been requested', alerts: false, alertCategories: ['thunderstorm','heavy-rain','high-wind'], alertNotified: [], officialAlertNotifications: false, officialAlertMinimumSeverity: 'moderate', officialAlertNotified: [], defaultPlaceId: '', quietHoursStart: '', quietHoursEnd: '', highContrast: false, widgetOpacity: 100, widgetScale: 100 };
 const severityLabel = (value: OfficialSeverity) => value === 'unknown' ? 'Severity not provided' : value[0].toUpperCase() + value.slice(1);
 const temperatureFor = (value: number, unit: 'C'|'F') => `${celsius(value,unit)}°${unit}`;
 
@@ -310,7 +310,8 @@ export default function App() {
   }, [isWidgetWindow]);
 
   // The widget's window has to match its size preference, and only the main
-  // process can resize a window.
+  // process can resize a window. The main process ignores resize requests
+  // while a drag is active so the drag keeps its starting dimensions.
   useEffect(() => {
     if (!isWidgetWindow || !hydrated) return;
     void window.atmosphere?.resizeWidget?.(prefs.widgetScale);
@@ -558,7 +559,7 @@ export default function App() {
   }, [data]);
   const solarDay = solar.today;
   const displayLocale = prefs.locale === 'system' ? (isUrdu ? 'ur-PK' : undefined) : prefs.locale;
-  const localTime = (iso: string, timezone: string, options: Intl.DateTimeFormatOptions = { hour: 'numeric' }) => formatLocalTime(iso, timezone, options, displayLocale);
+  const localTime = (iso: string, timezone: string, options: Intl.DateTimeFormatOptions = { hour: 'numeric' }) => formatLocalTime(iso, timezone, isUrdu ? { ...options, hourCycle: 'h23' } : options, displayLocale);
   const alertTimezone = data?.place.timezone && data.place.timezone !== 'auto' ? data.place.timezone : prefs.active?.timezone && prefs.active.timezone !== 'auto' ? prefs.active.timezone : Intl.DateTimeFormat().resolvedOptions().timeZone;
   const alertTime = (iso?: string) => iso && Number.isFinite(Date.parse(iso)) ? localTime(iso, alertTimezone, { weekday: 'short', hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric' }) : 'Time not provided';
   const dailyStats = useMemo(() => {
@@ -617,17 +618,25 @@ export default function App() {
     // corner of the card, which looked misplaced and was hard to hit.
     return localize(<main lang={isUrdu?'ur-PK':'en'} dir={isUrdu?'rtl':'ltr'} className={`weather-widget has-weather-scene scene-${activeScene} theme-${widgetTheme} ${prefs.reducedMotion || systemReducedMotion?'motion-off':''}`} onDoubleClick={()=>void window.atmosphere?.openApp()} style={widgetStyle}>
       {data && current && <WeatherCanvas weather={{ code: current.code, isDay: current.isDay, wind: current.wind, windDirection: current.windDirection, precipitation: current.precipitation, cloud: current.cloud, temperature: current.temperature, sunrise: solarDay?.sunrise, sunset: solarDay?.sunset, nextSunrise: solar.nextSunrise }} enabled={prefs.animate && !prefs.reducedMotion && !systemReducedMotion} nightBackdrop={showNightTexture}/>}
-      <div className="widget-header"
-        onPointerDown={e => {
-          if (e.button !== 0 || (e.target instanceof Element && e.target.closest('.widget-close'))) return;
-          e.currentTarget.setPointerCapture(e.pointerId);
-          window.atmosphere?.beginWidgetDrag(e.screenX, e.screenY);
-        }}
-        onPointerMove={e => {
-          if (e.buttons & 1) window.atmosphere?.moveWidgetDrag(e.screenX, e.screenY);
-        }}
-        onPointerUp={() => window.atmosphere?.endWidgetDrag()}
-        onPointerCancel={() => window.atmosphere?.endWidgetDrag()}>
+      <div className="widget-header" onPointerDown={async (e) => {
+        if ((e.target as HTMLElement).closest('.widget-close')) return;
+        e.preventDefault();
+        const bounds = await window.atmosphere?.startWidgetDrag?.();
+        if (!bounds) return;
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const onPointerMove = (me: PointerEvent) => {
+          const dx = me.clientX - startX;
+          const dy = me.clientY - startY;
+          void window.atmosphere?.moveWidget?.(dx, dy);
+        };
+        const onPointerUp = () => {
+          window.removeEventListener('pointermove', onPointerMove);
+          window.removeEventListener('pointerup', onPointerUp);
+        };
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+      }}>
         <span className="widget-place" title={isUrdu?'ویجیٹ کو گھسیٹ کر منتقل کریں':'Drag to move the widget'}>{data?.place.name ?? 'Atmosphere Weather'}</span>
         <button className="widget-close" onClick={()=>void window.atmosphere?.close()} aria-label={t('Close weather widget')}><X size={12}/></button>
       </div>
@@ -639,7 +648,7 @@ export default function App() {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  return localize(<main lang={isUrdu?'ur-PK':'en'} dir={isUrdu?'rtl':'ltr'} className={`app has-weather-scene scene-${activeScene} theme-${prefs.theme === 'system' ? systemTheme : prefs.theme} ${prefs.highContrast ? 'high-contrast' : ''} ${prefs.transparentPanels ? 'transparent-panels' : ''} ${settings ? 'settings-open' : ''} ${isMacPlatform ? 'mac-platform' : ''}`}>
+  return localize(<main lang={isUrdu?'ur-PK':'en'} dir={isUrdu?'rtl':'ltr'} className={`app has-weather-scene scene-${activeScene} theme-${prefs.theme === 'system' ? systemTheme : prefs.theme} ${prefs.highContrast ? 'high-contrast' : ''} ${prefs.transparentPanels ? 'transparent-panels' : ''} ${prefs.pureBackground ? 'pure-background' : ''} ${settings ? 'settings-open' : ''} ${isMacPlatform ? 'mac-platform' : ''}`}>
     {data && current && <WeatherCanvas weather={{ code: current.code, isDay: current.isDay, wind: current.wind, windDirection: current.windDirection, precipitation: current.precipitation, cloud: current.cloud, temperature: current.temperature, sunrise: solarDay?.sunrise, sunset: solarDay?.sunset, nextSunrise: solar.nextSunrise }}       enabled={prefs.animate && !prefs.reducedMotion && !windowHidden && !settings} nightBackdrop={showNightTexture}/>}
 
     <header className="titlebar" onDoubleClick={e => {
@@ -739,7 +748,7 @@ export default function App() {
                 <p className="eyebrow">{place?.name ?? ''}</p>
                 <div className="temperature">{temperature(current!.temperature)}</div>
                 <div className="live-condition"><span>{weatherText(current!.code)}</span><span className="live-dot"/><span className="live-label">{t(stale ? 'Saved' : 'Current')}</span></div>
-                <div className="today-range">H: {temperature(data.daily[0].high)} · L: {temperature(data.daily[0].low)} · Updated {data ? localTime(trackingLocation && locationUpdatedAt ? locationUpdatedAt : data.fetchedAt, data.place.timezone, {hour:'numeric',minute:'2-digit'}) : ''}</div>
+                <div className="today-range" dir={isUrdu?'rtl':'ltr'}>{isUrdu ? <><span>زیادہ: <bdi dir="ltr">{temperature(data.daily[0].high)}</bdi></span><span aria-hidden="true">·</span><span>کم: <bdi dir="ltr">{temperature(data.daily[0].low)}</bdi></span><span aria-hidden="true">·</span><span>تازہ کاری: <bdi dir="ltr">{localTime(trackingLocation && locationUpdatedAt ? locationUpdatedAt : data.fetchedAt, data.place.timezone, {hour:'2-digit',minute:'2-digit'})}</bdi></span></> : <>H: {temperature(data.daily[0].high)} · L: {temperature(data.daily[0].low)} · Updated {localTime(trackingLocation && locationUpdatedAt ? locationUpdatedAt : data.fetchedAt, data.place.timezone, {hour:'numeric',minute:'2-digit'})}</>}</div>
               </div>
               <div className="hero-art" aria-hidden="true">{iconFor(current!.code,current!.isDay,64)}</div>
             </section>
@@ -758,7 +767,7 @@ export default function App() {
               <div className="hourly-scroll">{data.hourly.map((h,i)=><article className={`hour-item ${i===0?'hour-now':''}`} key={h.time} title={`Precipitation chance ${h.precipitationChance}%; expected amount ${h.precipitation.toFixed(1)} mm`}><span className="hour-time">{i===0?'Now':localTime(h.time,data.place.timezone)}</span><span className="hour-icon">{iconFor(h.code,true,20)}</span><strong>{temperature(h.temperature)}</strong><span className="hour-rain"><Droplets size={11}/>{h.precipitationChance}%</span><small className="hour-amount">{h.precipitation.toFixed(1)} mm</small></article>)}</div>
               <div className="chart-wrap" role="img" aria-label="Temperature trend for the next 24 hours">
                 <ResponsiveContainer width="100%" height={150}>
-                  <AreaChart data={chart} margin={{top:22,right:8,bottom:0,left:0}}><defs><linearGradient id="tempFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#5ac8fa" stopOpacity={0.28}/><stop offset="100%" stopColor="#5ac8fa" stopOpacity={0}/></linearGradient></defs><CartesianGrid vertical={false} stroke="rgba(255,255,255,.08)"/><XAxis dataKey="label" padding={{left:18,right:18}} tick={{fill:'#8e8e93',fontSize:10}} tickLine={false} axisLine={false} interval={3}/><YAxis hide domain={['dataMin - 3','dataMax + 3']}/><Tooltip contentStyle={{background:'rgba(28,28,30,.94)',border:'1px solid rgba(255,255,255,.12)',borderRadius:10,color:'#f5f5f7'}} formatter={(v, name, entry) => [typeof v === 'number' ? temperature(v) : String(v ?? 'Unavailable'), entry?.payload?.cond ? `${name} · ${entry.payload.cond}` : name]}/><Area type="monotone" dataKey="temperature" stroke="#5ac8fa" strokeWidth={2} fill="url(#tempFill)" dot={false} activeDot={{r:4,fill:'#5ac8fa',stroke:'#1c1c1e',strokeWidth:2}}/></AreaChart>
+                  <AreaChart data={chart} margin={{top:22,right:8,bottom:0,left:0}}><defs><linearGradient id="tempFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#5ac8fa" stopOpacity={0.28}/><stop offset="100%" stopColor="#5ac8fa" stopOpacity={0}/></linearGradient></defs><CartesianGrid vertical={false} stroke="rgba(255,255,255,.08)"/><XAxis dataKey="label" padding={{left:18,right:18}} tick={{fill:'currentColor',fontSize:10}} tickLine={false} axisLine={false} interval={3}/><YAxis hide domain={['dataMin - 3','dataMax + 3']}/><Tooltip contentStyle={{background:'rgba(28,28,30,.94)',border:'1px solid rgba(255,255,255,.12)',borderRadius:10,color:'#f5f5f7'}} formatter={(v, name, entry) => [typeof v === 'number' ? temperature(v) : String(v ?? 'Unavailable'), entry?.payload?.cond ? `${name} · ${entry.payload.cond}` : name]}/><Area type="monotone" dataKey="temperature" stroke="#5ac8fa" strokeWidth={2} fill="url(#tempFill)" dot={false} activeDot={{r:4,fill:'#5ac8fa',stroke:'#1c1c1e',strokeWidth:2}}/></AreaChart>
                 </ResponsiveContainer>
               </div>
               {chartDataVisible && <div className="accessible-table-wrap scrollbar-thin"><table><caption>{t('Hourly temperature data')}</caption><thead><tr><th scope="col">{t('Time')}</th><th scope="col">{t('Temperature')}</th><th scope="col">{t('Condition')}</th><th scope="col">{t('Rain chance')}</th></tr></thead><tbody>{data.hourly.map(h=><tr key={h.time}><td dir="ltr">{localTime(h.time,data.place.timezone)}</td><td dir="ltr">{temperature(h.temperature)}</td><td>{weatherText(h.code)}</td><td dir="ltr">{h.precipitationChance}%</td></tr>)}</tbody></table></div>}
@@ -858,8 +867,8 @@ export default function App() {
             </div>
             <div className="setting-row"><span className="label">{t('High contrast')}</span><input className="switch" type="checkbox" role="switch" aria-label={t('High contrast')} checked={prefs.highContrast} onChange={e=>setPrefs(p=>({...p,highContrast:e.target.checked}))}/></div>
             <div className="setting-row"><span className="label">{t('Weather animation')}</span><input className="switch" type="checkbox" role="switch" aria-label={t('Weather animation')} checked={prefs.animate} onChange={e=>setPrefs(p=>({...p,animate:e.target.checked}))}/></div>
-            <div className="setting-row"><span className="label">{t('Transparent panels')}</span><input className="switch" type="checkbox" role="switch" aria-label={t('Transparent panels')} checked={prefs.transparentPanels} onChange={e=>setPrefs(p=>({...p,transparentPanels:e.target.checked}))}/></div>
-            <p className="caption">Lifts the panels so the live weather background shows through. Turn on &ldquo;Weather animation&rdquo; to see it move.</p>
+            <div className="setting-row"><span className="label">Pure background (hide tiles)</span><input className="switch" type="checkbox" role="switch" aria-label="Pure background" checked={prefs.pureBackground} onChange={e=>setPrefs(p=>({...p,pureBackground:e.target.checked}))}/></div>
+            <p className="caption">Removes all panel tiles and floats all weather readings directly over the live weather background animation.</p>
             <div className="setting-row"><span className="label">{t('Reduce motion')}</span><input className="switch" type="checkbox" role="switch" aria-label={t('Reduce motion')} checked={prefs.reducedMotion} onChange={e=>setPrefs(p=>({...p,reducedMotion:e.target.checked}))}/></div>
             <div className="setting-block">
               <span className="label">Demo scene</span>

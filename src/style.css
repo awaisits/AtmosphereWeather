@@ -142,6 +142,7 @@ a:hover { text-decoration: underline; }
 }
 .app[dir="rtl"] .sidebar { border-right: 0; border-left: 1px solid var(--sidebar-border); }
 .app[dir="rtl"] .nav-item { text-align: right; }
+.app[dir="rtl"] .today-range { display: flex; flex-wrap: wrap; justify-content: flex-start; align-items: baseline; gap: 0 6px; direction: rtl; }
 .app[dir="rtl"] .search-wrap > svg { left: auto; right: 10px; }
 .app[dir="rtl"] .settings-sheet { border-radius: 0 var(--radius-xl) var(--radius-xl) 0; border-right: 1px solid var(--border-default); border-left: 0; transform: translateX(-40px); }
 .app[dir="rtl"] .modal-overlay.open .settings-sheet { transform: translateX(0); }
@@ -672,6 +673,7 @@ a:hover { text-decoration: underline; }
 /* ---------- Hero ---------- */
 .hero { position: relative; isolation: isolate; overflow: hidden; border-radius: var(--radius-xl); border: 1px solid var(--border-default); padding: 28px 30px; margin-bottom: 16px; min-height: 240px; background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary)); }
 .hero-copy { position: relative; z-index: 1; }
+.app[dir="rtl"] .hero-copy > .eyebrow { text-align: left; }
 .temperature { font: 700 clamp(56px, 9vw, 88px)/1 var(--font-sans); letter-spacing: -4px; color: var(--fg-primary); }
 .live-condition { display: flex; align-items: center; gap: 9px; margin-top: 10px; font: 500 15px var(--font-sans); color: var(--fg-secondary); }
 .live-condition svg { color: var(--accent); }
@@ -926,7 +928,7 @@ body:has(.weather-widget) { background: transparent; }
   margin: calc(var(--w) * -1.538);
   margin-bottom: calc(var(--w) * 0.769);
   padding: calc(var(--w) * 0.769) calc(var(--w) * 1.154);
-  -webkit-app-region: no-drag;
+  -webkit-app-region: drag;
   cursor: grab;
   user-select: none;
 }
@@ -1279,3 +1281,35 @@ body:has(.weather-widget) { background: transparent; }
    traffic lights. */
 .titlebar-spacer { flex: 1; }
 .titlebar-actions { gap: 2px; }
+
+.app.pure-background .section,
+.app.pure-background .card,
+.app.pure-background .insight-strip,
+.app.pure-background .notice,
+.app.pure-background .stale,
+.app.pure-background .hero,
+.app.pure-background .titlebar,
+.app.pure-background .sidebar,
+.app.pure-background .plan-card,
+.app.pure-background .air-grid > span,
+.app.pure-background .outdoor-advice,
+.app.pure-background .pollen-panel,
+.app.pure-background .pollen-item,
+.app.pure-background .official-alert-status,
+.app.pure-background .official-alert-card,
+.app.pure-background .selected-day,
+.app.pure-background .hour-item {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.app.pure-background {
+  text-shadow: 0 1px 4px rgba(0,0,0,0.65);
+}
+.app.pure-background .recharts-cartesian-axis-tick text {
+  fill: #ffffff !important;
+  font-weight: 600;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.8));
+}
